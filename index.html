@@ -39,6 +39,7 @@
       <a href="#abstract">Abstract</a>
       <a href="#challenge">Challenge</a>
       <a href="#method">Method</a>
+      <a href="#morpheus">Morpheus</a>
       <a href="#results">Results</a>
       <a href="#metrics">Perspective</a>
       <a href="#code">Code</a>
@@ -173,6 +174,20 @@
       <div class="card blue"><h3>Factorized attention</h3><p>The volume is treated as a batch of 2D slices: shallow layers use local neighborhood attention, deeper layers apply intra-slice then inter-slice (depth) attention to restore volumetric coherence at a fraction of full-3D cost.</p></div>
       <div class="card"><h3>State-aware weighting</h3><p>Velocity prediction is modeled with an input-dependent variance, so the loss down-weights inherently unpredictable high-frequency content while a log-variance term prevents trivial inflation.</p></div>
       <div class="card peach"><h3>Frequency conditioning</h3><p>The predicted log-variances are projected into a frequency hint and combined with time, slice and age embeddings, letting the backbone adapt to each band's current reliability.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ MORPHEUS ============================ -->
+<section id="morpheus">
+  <div class="wrap">
+    <p class="eyebrow peach">Inside the model</p>
+    <h2 class="section-title">Morpheus: a state-aware uncertainty scheduler</h2>
+    <p class="section-lead">Unlike schedulers that look only at the timestep, Morpheus reads the statistical signature of the current noisy wavelet state and predicts a per-band log-variance that steers both training and sampling, so the model spends its capacity where the signal is actually predictable.</p>
+    <div class="grid cols-3">
+      <div class="card peach"><span class="badge">1</span><h3>Reads higher-order statistics</h3><p>For each wavelet band it extracts mean, standard deviation, max amplitude, L2 energy, skewness and kurtosis, concatenated with a time embedding, capturing how heavy-tailed each band is at the current step.</p></div>
+      <div class="card"><span class="badge">2</span><h3>Weights the loss</h3><p>The predicted log-variance forms a Bayesian heteroscedastic objective that down-weights inherently unpredictable high-frequency content, while a log-variance term prevents trivial variance inflation, giving state-dependent precision instead of uniform MSE.</p></div>
+      <div class="card green"><span class="badge">3</span><h3>Conditions the backbone</h3><p>The same log-variances are projected into a frequency hint and injected alongside time, slice and age, so the transformer adapts its prediction to the current reliability of each band, during training and sampling alike.</p></div>
     </div>
   </div>
 </section>
