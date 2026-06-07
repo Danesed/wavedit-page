@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>WaveDiT: Distribution-Aware Wavelet Flow Matching for Efficient 3D Brain MRI Synthesis</title>
+<meta name="description" content="WaveDiT performs conditional flow matching in the 3D Haar wavelet domain with factorized spatio-depth attention and the Morpheus state-aware heteroscedastic uncertainty scheduler, for fast, efficient, full-resolution 3D brain MRI synthesis. Provisionally accepted at MICCAI 2026." />
+
+<!-- Open Graph / social preview -->
+<meta property="og:title" content="WaveDiT: Distribution-Aware Wavelet Flow Matching for Efficient 3D Brain MRI Synthesis" />
+<meta property="og:description" content="Conditional flow matching in the 3D Haar wavelet domain with band-wise heteroscedastic uncertainty (Morpheus): fast, efficient, anatomically faithful 3D brain MRI synthesis (MICCAI 2026)." />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://danesed.github.io/wavedit-page/" />
+<meta property="og:image" content="https://danesed.github.io/wavedit-page/static/images/architecture.png" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="static/css/style.css" />
+
+<!-- Page-specific tweaks (shared static/css/style.css is kept verbatim) -->
+<style>
+  /* Long title: wider column + balanced line breaks so it reads on ~2 lines, not 4 */
+  .hero h1 { max-width: 24ch; text-wrap: balance; }
+  /* Use more of the page width so paragraphs don't wrap so often */
+  .section-lead { max-width: 940px; }
+  /* A wider, landscape variant for the matplotlib kurtosis plot */
+  figure.fig.plot.wide { max-width: 900px; }
+</style>
+</head>
+<body>
+
+<!-- ============================ NAV ============================ -->
+<nav class="nav">
+  <div class="wrap">
+    <div class="brand">Wave<span>DiT</span></div>
+    <div class="links">
+      <a href="#highlights">Highlights</a>
+      <a href="#abstract">Abstract</a>
+      <a href="#challenge">Challenge</a>
+      <a href="#method">Method</a>
+      <a href="#results">Results</a>
+      <a href="#metrics">Perspective</a>
+      <a href="#code">Code</a>
+      <a href="#cite">Cite</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ============================ HERO ============================ -->
+<header class="hero">
+  <div class="wrap">
+    <span class="venue-badge">● Provisionally accepted at MICCAI 2026</span>
+    <h1>WaveDiT: <span class="lit">Distribution-Aware Wavelet Flow Matching</span> for Efficient 3D Brain MRI Synthesis</h1>
+
+    <p class="authors">
+      <a href="#">Danilo Danese</a><sup>1,&#42;</sup>,
+      <a href="#">Angela Lombardi</a><sup>1</sup>,
+      <a href="#">Giuseppe Fasano</a><sup>1</sup>,
+      <a href="#">Matteo Attimonelli</a><sup>1,2</sup>,
+      <a href="#">Tommaso Di Noia</a><sup>1</sup>
+    </p>
+    <p class="affil"><sup>1</sup> Politecnico di Bari, Italy &nbsp;·&nbsp; <sup>2</sup> Sapienza University of Rome, Italy</p>
+    <p class="corr"><sup>&#42;</sup> Corresponding author</p>
+
+    <div class="btn-row">
+      <!-- TODO: replace with the MICCAI 2026 proceedings DOI/URL when available -->
+      <a class="btn primary" href="#" rel="noopener"><span class="ico">📄</span> Paper (MICCAI 2026)</a>
+      <!-- TODO: replace with the arXiv preprint URL when available -->
+      <a class="btn" href="#" rel="noopener"><span class="ico">📄</span> arXiv preprint</a>
+      <a class="btn blue" href="https://github.com/sisinflab/WaveDiT" target="_blank" rel="noopener"><span class="ico">&lt;/&gt;</span> Official code</a>
+      <a class="btn" href="https://github.com/danesed/WaveDiT" target="_blank" rel="noopener"><span class="ico">⎇</span> Development code</a>
+      <a class="btn" href="#cite"><span class="ico">❝</span> BibTeX</a>
+    </div>
+    <p class="paper-note">The <b>MICCAI 2026</b> proceedings paper is the peer-reviewed version of record (link forthcoming). An earlier <b>arXiv</b> preprint will also be available and may differ from the camera-ready version.</p>
+  </div>
+
+  <div class="wrap" style="margin-top:34px">
+    <figure class="fig">
+      <img src="static/images/architecture.png" alt="WaveDiT training pipeline: a real 3D MRI is mapped by a 3D Haar DWT into eight wavelet subbands and a flow interpolation; a slice-wise HDiT backbone with neighborhood and factorized spatio-depth attention predicts the velocity, conditioned on age, slice index and a Morpheus frequency hint; the Morpheus network reads per-band statistics (mean, std, max, L2, skew, kurtosis) to predict log-variance used in a Bayesian heteroscedastic loss." />
+      <figcaption><b>WaveDiT pipeline.</b> A 3D Haar transform maps the volume to an 8-channel wavelet latent; a slice-wise HDiT backbone with neighborhood and factorized spatio-depth attention predicts the flow-matching velocity. <b>Morpheus</b> reads higher-order per-band statistics to predict log-variance, which weights a Bayesian heteroscedastic loss and conditions the backbone. The inverse Haar transform reconstructs the synthetic MRI.</figcaption>
+    </figure>
+  </div>
+</header>
+
+<!-- ============================ HIGHLIGHTS ============================ -->
+<section id="highlights">
+  <div class="wrap">
+    <p class="eyebrow">Highlights</p>
+    <h2 class="section-title">What WaveDiT does</h2>
+    <p class="section-lead">Conditional flow matching in an invertible 3D wavelet domain, made distribution-aware: a state-aware uncertainty scheduler adapts precision to the heavy-tailed statistics of high-frequency anatomy.</p>
+    <div class="grid cols-3">
+      <div class="card"><span class="badge">1</span><h3>Wavelet flow matching</h3><p>Generative modeling directly on the 8-channel 3D Haar latent (1 low-frequency + 7 high-frequency subbands), full-resolution and learning-free, no lossy latent compression.</p></div>
+      <div class="card peach"><span class="badge">2</span><h3>Morpheus uncertainty</h3><p>A state-aware scheduler predicts per-band log-variance from higher-order wavelet statistics, driving a Bayesian heteroscedastic loss and a frequency-aware conditioning hint.</p></div>
+      <div class="card green"><span class="badge">3</span><h3>Factorized spatio-depth HDiT</h3><p>The Hourglass Diffusion Transformer extended to 3D with neighborhood and factorized intra-/inter-slice attention, avoiding the cost of full 3D self-attention.</p></div>
+      <div class="card"><span class="badge">4</span><h3>Fast few-step sampling</h3><p>Deterministic second-order Heun integration generates a full 3D volume in about one second using only 10 steps.</p></div>
+      <div class="card peach"><span class="badge">5</span><h3>Multi-level evaluation</h3><p>Global distributional metrics, a downstream brain-age prediction study, and region-level analysis over 95 cortical and subcortical structures.</p></div>
+      <div class="card green"><span class="badge">+</span><h3>Full-resolution &amp; scalable</h3><p>Trains directly on <b>full-resolution, native 182&times;218&times;182</b> volumes, full voxel detail with no downsampling and no lossy latent compression. ~142M parameters in ~26&nbsp;h on a single H100 (~12&nbsp;GB at batch size 1), and the single-file YAML scales the architecture up or down with one edit.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ABSTRACT ============================ -->
+<section id="abstract">
+  <div class="wrap">
+    <p class="eyebrow gray" style="text-align:center">Abstract</p>
+    <div class="abstract">
+      <p>Large and demographically balanced datasets are essential for reliable neuroimaging biomarkers. Full-resolution 3D brain MRI synthesis can support data augmentation in this setting, but existing approaches either incur prohibitive computational cost at volumetric scale or rely on lossy latent compression that may compromise anatomical detail. As a result, practical 3D generative augmentation often requires specialized compute infrastructure. We propose <b>WaveDiT</b>, a conditional flow matching framework operating in the coefficient space of a 3D Haar Discrete Wavelet Transform. The model combines factorized spatio-depth attention with band-wise heteroscedastic uncertainty modeling derived from higher-order wavelet statistics. Predicted log-variance is integrated directly into both the flow objective and conditioning pathway, enabling adaptive precision consistent with the heavy-tailed and input-dependent variance structure of anatomical detail. This formulation supports full-resolution 3D synthesis under practical memory and time constraints on a single modern GPU. Evaluation on a multi-site cohort demonstrates improved alignment between generated and real MRI distributions, together with enhanced downstream brain age prediction and region-level anatomical agreement relative to diffusion, latent, and wavelet-based baselines.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ CHALLENGE ============================ -->
+<section id="challenge">
+  <div class="wrap">
+    <p class="eyebrow peach">The challenge</p>
+    <h2 class="section-title">Wavelet bands are not statistically equal</h2>
+    <p class="section-lead">Decomposing a brain volume into wavelet subbands exposes sharply different statistics across bands, and those statistics evolve along the generative trajectory. Treating every band and voxel with a uniform loss is a poor fit.</p>
+
+    <div class="grid cols-3" style="margin-bottom:22px">
+      <div class="card peach"><h3>Heavy-tailed high frequencies</h3><p>Approximation coefficients stay near-Gaussian, but high-frequency bands become sparse and strongly leptokurtic, with the isotropic HHH band reaching a kurtosis of ~270 near the data.</p></div>
+      <div class="card peach"><h3>Input-dependent variance</h3><p>High-frequency local variance spans roughly eight orders of magnitude across space, rising at tissue boundaries and falling in homogeneous regions, i.e. it is strongly heteroscedastic.</p></div>
+      <div class="card peach"><h3>Uniform loss is suboptimal</h3><p>Fixed-precision MSE over-penalizes errors at high-variance boundaries and under-penalizes homogeneous regions, motivating a state-aware, band-wise precision.</p></div>
+    </div>
+
+    <figure class="fig plot wide">
+      <img src="static/images/kurtosis_evolution.png" alt="Line plot of wavelet-subband kurtosis as a function of flow timestep, with shaded standard-deviation bands. The LLL band stays near 5, single-axis detail bands reach about 30, two-axis bands reach about 90, and the isotropic HHH band rises to roughly 270 near timestep 1, annotated with ratios to the noise level of 1.7x, 9.9x, 30.8x and 89.8x." />
+      <figcaption><b>Kurtosis explodes along the flow trajectory.</b> At pure noise all bands are Gaussian (&kappa;&nbsp;&approx;&nbsp;3); approaching the data, single-axis detail bands reach &kappa;&nbsp;&approx;&nbsp;30, two-axis bands &kappa;&nbsp;&approx;&nbsp;90, and the isotropic HHH band peaks near &kappa;&nbsp;&approx;&nbsp;270 (89.8&times; the noise level). This evolving, heavy-tailed contrast is what WaveDiT's Morpheus scheduler is designed to handle.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ============================ METHOD ============================ -->
+<section id="method">
+  <div class="wrap">
+    <p class="eyebrow">The method</p>
+    <h2 class="section-title">Distribution-aware flow matching in the wavelet domain</h2>
+    <p class="section-lead">A single-stage pipeline: decompose with an invertible 3D Haar transform, learn a velocity field in wavelet space with a slice-wise transformer whose precision is modulated by a state-aware uncertainty network, then reconstruct with the inverse transform. Everything is trained end-to-end on <b>full-resolution, native 182&times;218&times;182</b> volumes (no downsampling, no learned latent compression), and the entire architecture scales up or down from a single YAML config.</p>
+
+    <div class="pipeline" style="margin-bottom:14px">
+      <div class="panel blue">
+        <div class="plabel">Step 1 · Decompose</div>
+        <h4>3D Haar DWT</h4>
+        <p>Each volume is split into one low-frequency approximation subband and seven directional high-frequency subbands, an 8-channel latent at half resolution, lossless and learning-free.</p>
+        <div class="io"><b>in</b> real 3D MRI &nbsp;→&nbsp; <b>out</b> 8 subbands</div>
+      </div>
+      <div class="panel peach">
+        <div class="plabel">Step 2 · Transport + weight</div>
+        <h4>HDiT v<sub>&theta;</sub> &amp; Morpheus</h4>
+        <p>A slice-wise HDiT predicts the flow-matching velocity with neighborhood and factorized spatio-depth attention; Morpheus predicts per-band log-variance for a Bayesian heteroscedastic loss and a frequency hint.</p>
+        <div class="io"><b>in</b> noise + t + age &nbsp;→&nbsp; <b>out</b> velocity + log-variance</div>
+      </div>
+      <div class="panel green">
+        <div class="plabel">Step 3 · Reconstruct</div>
+        <h4>3D Haar IDWT</h4>
+        <p>The generated wavelet coefficients are mapped back to a full-resolution volume by the inverse transform, no learned decoder and no compression artifacts.</p>
+        <div class="io"><b>in</b> 8 subbands &nbsp;→&nbsp; <b>out</b> synthetic MRI</div>
+      </div>
+    </div>
+
+    <div class="chips" style="margin:16px 0 26px">
+      <span class="chip blue">3D Haar DWT / IDWT</span>
+      <span class="chip peach">Bayesian heteroscedastic loss</span>
+      <span class="chip">Morpheus uncertainty</span>
+      <span class="chip green">neighborhood + spatio-depth attention</span>
+      <span class="chip">AxialRoPE · AdaRMSNorm</span>
+      <span class="chip">10-step Heun ODE</span>
+      <span class="chip blue">full-resolution 182×218×182</span>
+      <span class="chip green">config-driven scaling</span>
+    </div>
+
+    <div class="grid cols-3">
+      <div class="card blue"><h3>Factorized attention</h3><p>The volume is treated as a batch of 2D slices: shallow layers use local neighborhood attention, deeper layers apply intra-slice then inter-slice (depth) attention to restore volumetric coherence at a fraction of full-3D cost.</p></div>
+      <div class="card"><h3>State-aware weighting</h3><p>Velocity prediction is modeled with an input-dependent variance, so the loss down-weights inherently unpredictable high-frequency content while a log-variance term prevents trivial inflation.</p></div>
+      <div class="card peach"><h3>Frequency conditioning</h3><p>The predicted log-variances are projected into a frequency hint and combined with time, slice and age embeddings, letting the backbone adapt to each band's current reliability.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ RESULTS ============================ -->
+<section id="results">
+  <div class="wrap">
+    <p class="eyebrow green">Results</p>
+    <h2 class="section-title">Fast, efficient, and anatomically faithful</h2>
+    <p class="section-lead">On a multi-site cohort of 5,989 cognitively-normal subjects, WaveDiT-CFM leads on global fidelity while also improving the downstream and region-level endpoints that matter clinically, at a fraction of the sampling and training cost.</p>
+
+    <div class="grid cols-4" style="margin-bottom:30px">
+      <div class="stat"><div class="num blue">0.0039</div><div class="lbl">FID ↓</div><div class="sub">lowest at 10 steps</div></div>
+      <div class="stat"><div class="num green">2.44</div><div class="lbl">Brain-age MAE ↓</div><div class="sub">years; below real-only (2.92)</div></div>
+      <div class="stat"><div class="num peach">0.46</div><div class="lbl">ROI Dice ↑</div><div class="sub">mean over 95 regions</div></div>
+      <div class="stat"><div class="num blue">~1 s</div><div class="lbl">per volume</div><div class="sub">10 steps · ~26&nbsp;h to train</div></div>
+    </div>
+
+    <figure class="fig dark" style="margin-top:18px">
+      <img src="static/images/samples_comparison.png" alt="Axial, coronal and sagittal slices comparing a real 72-year-old subject, WaveDiT (Ours), and nine other 3D brain MRI synthesis methods at the same target age." />
+      <figcaption><b>Qualitative comparison.</b> Axial, coronal and sagittal views of a real 72-year-old subject and age-conditioned generations at the same target age: WaveDiT (<em>Ours</em>) alongside the baselines.</figcaption>
+    </figure>
+
+    <div class="grid cols-3" style="margin-top:24px">
+      <div class="card green"><h3>Region-level fidelity</h3><p>WaveDiT-CFM achieves the best ROI scores across all 95 cortical and subcortical structures, with the highest Dice and lowest KL divergence among the compared methods.</p></div>
+      <div class="card"><h3>Leading global fidelity</h3><p>The lowest FID and MMD among all methods at only 10 sampling steps, improving over the conditioned wavelet baseline and over 1000-step diffusion.</p></div>
+      <div class="card peach"><h3>Clinical utility</h3><p>Augmenting training with WaveDiT samples yields the lowest brain-age MAE (2.44 years), below models trained on real data alone under the same protocol.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ METRIC INTERPRETATION ============================ -->
+<section id="metrics">
+  <div class="wrap">
+    <p class="eyebrow peach" style="text-align:center">Perspective</p>
+    <h2 class="section-title" style="text-align:center">Reading the metrics, not just reporting them</h2>
+    <div class="note-block">
+      <p>In volumetric brain MRI a single global score can quietly mislead. A large fraction of voxels are background, so distribution-level metrics such as FID and MMD can look favorable even when clinically relevant anatomy is wrong, and a generator can be rewarded simply for drifting toward an "average" brain.</p>
+      <p>This is why WaveDiT is evaluated with a multi-level protocol. Some baselines reach competitive FID yet show markedly weaker regional structure, lower Dice and higher KL divergence, exactly the discrepancy that global numbers hide. Only when global fidelity, a downstream <b>brain-age prediction</b> task, and <b>region-level</b> agreement over 95 structures are read <b>together</b> do they give an honest, anatomy- and task-aware picture of generative quality.</p>
+      <p>WaveDiT builds directly on the wavelet-domain analysis and multi-level evaluation introduced in <a href="https://danesed.github.io/flowlet-page/" target="_blank" rel="noopener"><b>FlowLet</b></a>, pushing that line of work further toward <em>distribution-aware</em>, full-resolution 3D generation: a transformer backbone and a state-aware uncertainty scheduler that adapt to the heavy-tailed statistics of the wavelet bands.</p>
+      <p class="read-more"><a href="https://danesed.github.io/flowlet-page/" target="_blank" rel="noopener">Read the FlowLet analysis this work builds upon →</a></p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ CODE / RESOURCES ============================ -->
+<section id="code">
+  <div class="wrap">
+    <p class="eyebrow">Code &amp; data</p>
+    <h2 class="section-title">Open-source &amp; reproducible</h2>
+    <p class="section-lead">The complete PyTorch implementation, training/generation scripts, and configuration files are released openly.</p>
+    <div class="grid cols-2">
+      <div class="card">
+        <h3>📦 Official implementation</h3>
+        <p style="margin-bottom:12px">The reference release of WaveDiT: training, generation, and self-contained checkpoints.</p>
+        <a class="btn blue" href="https://github.com/sisinflab/WaveDiT" target="_blank" rel="noopener">github.com/sisinflab/WaveDiT</a>
+      </div>
+      <div class="card">
+        <h3>⎇ Development &amp; enhancements</h3>
+        <p style="margin-bottom:12px">Ongoing development, experiments, and future enhancements.</p>
+        <a class="btn" href="https://github.com/danesed/WaveDiT" target="_blank" rel="noopener">github.com/danesed/WaveDiT</a>
+      </div>
+    </div>
+    <div class="grid cols-3" style="margin-top:18px">
+      <div class="card"><h3>Datasets</h3><p>A multi-site cohort built on <a href="https://baobablab.github.io/bhb/dataset" target="_blank" rel="noopener">OpenBHB</a>, <a href="https://adni.loni.usc.edu/" target="_blank" rel="noopener">ADNI</a> and <a href="https://sites.wustl.edu/oasisbrains/" target="_blank" rel="noopener">OASIS-3</a>: 5,989 cognitively-normal T1w subjects spanning ages 5.9 to 95.5.</p></div>
+      <div class="card"><h3>Evaluation</h3><p>Global metrics (FID, MMD, MS-SSIM), a downstream brain-age prediction study, and region-based ROI analysis over 95 structures.</p></div>
+      <div class="card"><h3>License</h3><p>Released under the MIT License for research and reuse.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ CITE ============================ -->
+<section id="cite">
+  <div class="wrap">
+    <p class="eyebrow gray">Citation</p>
+    <h2 class="section-title">BibTeX</h2>
+    <p class="section-lead">If you find WaveDiT useful, please cite the paper.</p>
+    <div class="copy-row">
+      <span style="font-weight:700; color:var(--muted); font-size:.9rem">WaveDiT, MICCAI 2026</span>
+      <button class="copy-btn" id="copyBib">Copy</button>
+    </div>
+<pre class="code" id="bib">
+% arXiv preprint
+@article{danese2026wavedit,
+  title={WaveDiT: Distribution-Aware Wavelet Flow Matching for Efficient 3D Brain MRI Synthesis},
+  author={Danese, Danilo and Lombardi, Angela and Fasano, Giuseppe and Attimonelli, Matteo and Di Noia, Tommaso},
+  journal={arXiv preprint arXiv:XXXX.XXXXX},
+  year={2026}
+}</pre>
+  </div>
+</section>
+
+<!-- ============================ ACKNOWLEDGEMENTS ============================ -->
+<section id="ack">
+  <div class="wrap">
+    <p class="eyebrow gray">Acknowledgements</p>
+    <p class="section-lead">WaveDiT builds on the wavelet-domain analysis and multi-level evaluation protocol of our previous work, <a href="https://danesed.github.io/flowlet-page/" target="_blank" rel="noopener"><b>FlowLet</b></a>.
+       The <b>HDiT</b> backbone is adapted from the great work of <a href="https://github.com/crowsonkb/k-diffusion" target="_blank" rel="noopener">k-diffusion</a>.</p>
+
+  </div>
+</section>
+
+<!-- ============================ FOOTER ============================ -->
+<footer>
+  <div class="wrap">
+    <div style="font-weight:800; letter-spacing:-.02em; font-size:1.1rem">WaveDiT</div>
+    <div style="margin-top:8px">
+      <a href="https://github.com/sisinflab/WaveDiT" target="_blank" rel="noopener">Official code</a> ·
+      <a href="https://github.com/danesed/WaveDiT" target="_blank" rel="noopener">Development code</a> ·
+      <a href="https://conferences.miccai.org/2026/" target="_blank" rel="noopener">MICCAI 2026</a>
+    </div>
+  </div>
+</footer>
+
+<!-- Lightbox -->
+<div class="lb" id="lightbox"><img src="" alt="" id="lbimg" /></div>
+
+<script src="static/js/main.js"></script>
+</body>
+</html>
